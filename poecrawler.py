@@ -15,27 +15,12 @@ from math import ceil
 import pygsheets
 
 
-
-
-def post_info():
-    while True:
-        item_name = input("請輸入物品名稱: ")
-        item_type = input("請輸入物品類型: ")
-
-        data = {"query":{"status":{"option":"online"}, "name":item_name, "type":item_type,
-                         "stats":[{"type":"and","filters":[]}]},"sort":{"price":"asc"}}
-        post_url = "https://web.poe.garena.tw/api/trade/search/" + quote(input("請輸入聯盟名稱: ")+"聯盟")#quote將url編碼
-
-        if res.status_code != 200: 
-            print("輸入錯誤，請重新輸入")
-        else:
-            break
-    return item_name, item_type, post_url, data
-
-
-
-
-def post_to_url_list(post_url, data) :
+def post_to_url_list() :
+    
+    data = {"query":{"status":{"option":"online"}, "name":"七日鋒", "type":"夜語長劍",
+                     "stats":[{"type":"and","filters":[]}]},"sort":{"price":"asc"}}
+    
+    post_url = "https://web.poe.garena.tw/api/trade/search/" + quote("戰亂聯盟")#quote將url編碼
     res = requests.post(post_url, json=data)
     soup = BeautifulSoup(res.text, "html5lib") #html5lib最泛用
     post_json = json.loads(soup.text, encoding="utf-8") #將資料轉成json型態
@@ -55,9 +40,9 @@ def post_to_url_list(post_url, data) :
         url = url_tmp[:-1] + "?query=" + query#str(iid)#去除最後一個逗點
         url_list.append(url)
     return url_list
-
-
-
+	
+	
+	
 
 def url_list_to_df(url_list) :
     ua = UserAgent() #製造假ua
@@ -87,26 +72,48 @@ def set_wks(wks):
 
 
 
-def main():
-    item_name, item_type, post_url, data = post_info()
+def get_wks():
     gc = pygsheets.authorize()
-    sh = gc.create(item_name+"_"+item_type)
-    wks = set_wks(sh.sheet1)
-    for count in range(5):
-		print(f"第{count}次執行")
-        if count > 0: #第一次不執行
-            wks = set_wks(sh.add_worksheet(index=count, title=str(count))) 
-        url_list = post_to_url_list(post_url, data)
-        df = url_list_to_df(url_list)
-        wks.set_dataframe(df, start="A1")
-        print(df)
-        time.sleep(120)
-	print("執行完成")
+    
+    strtime_now = time.strftime('%Y/%m/%d %H:%M:%S',time.localtime())
+    file_name = "七日鋒_夜語長劍"
+    
+    try: #測試是否存在
+        sh = gc.open(file_name)
+    except: #不存在的話，建立一個檔案，並且將sheet1設定為當前時間
+        sh = gc.create(file_name)
+        wks = sh.sheet1
+        wks.title = strtime_now
+    else: #有找到檔案則新建一個工作表，index = 當前工作表數量
+        wks = sh.add_worksheet(index=len(sh.worksheets()), title=strtime_now)
+    finally:
+        wks.cols = 3 
+        wks.adjust_column_width(start=2, pixel_size=800) #設定whisper的寬度
+    return wks
 
 
-main()
+
+def del_all_gsheet_by_filename(file_name):
+    while True:
+        try:
+            sh = gc.open(file_name)
+            sh.delete()
+        except:
+            print("完成")
+            break
 
 
 
 
+def main():
+    wks = get_wks()
+    url_list = post_to_url_list()
+    df = url_list_to_df(url_list)
+    wks.set_dataframe(df, start="A1") #將dataframe自A1
+
+
+
+
+if __name__ == "__main__":
+    main()
 
