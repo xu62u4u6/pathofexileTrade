@@ -1,18 +1,25 @@
 import requests
 import json
-from urllib.parse import urljoin
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from config import DEFAULT_COOKIES, DEFAULT_HEADERS, DEFAULT_LEAGUE, REQUEST_TIMEOUT
 
 class POETrade:
-    def __init__(self, league_name):
-        self.search_url = f"https://www.pathofexile.com/api/trade/search/{league_name}"
-        self.exchange_url = f"https://www.pathofexile.com/api/trade/exchange/{league_name}"
+    def __init__(self, league_name=None, headers=None, cookies=None, timeout=REQUEST_TIMEOUT):
+        self.league_name = league_name or DEFAULT_LEAGUE
+        self.search_url = f"https://www.pathofexile.com/api/trade/search/{self.league_name}"
+        self.exchange_url = f"https://www.pathofexile.com/api/trade/exchange/{self.league_name}"
         self.fetch_url = f"https://www.pathofexile.com/api/trade/fetch/"
-        self.headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
-           'Content-Type': 'application/json'}
+        self.headers = headers or DEFAULT_HEADERS.copy()
+        self.timeout = timeout
+        self.session = requests.Session()
+        self.session.headers.update(self.headers)
+        if cookies:
+            self.session.cookies.update(cookies)
+        else:
+            self.session.cookies.update({k: v for k, v in DEFAULT_COOKIES.items() if v})
 
     def fetch_exchange_data(self, have_item, want_item):
         payload = {"exchange": {
@@ -21,7 +28,7 @@ class POETrade:
                         "want": [have_item]
                     }
                 }
-        res = requests.post(self.exchange_url, data=json.dumps(payload), headers=self.headers)
+        res = self.session.post(self.exchange_url, data=json.dumps(payload), timeout=self.timeout)
         if res.status_code != 200:
             return None
         return res.json()
@@ -47,7 +54,7 @@ class POETrade:
             }
         }
 
-        res = requests.post(self.search_url, data=json.dumps(payload), headers=self.headers)
+        res = self.session.post(self.search_url, data=json.dumps(payload), timeout=self.timeout)
         if res.status_code != 200:
             return None
         return res.json()
@@ -63,8 +70,8 @@ class POETrade:
         
         items_list = []
         for i in range(0, len(results), 10):
-            items_url = urljoin(self.fetch_url, ",".join(results[i:i+10]), f"?query={trade_id}")
-            res = requests.get(items_url, headers=self.headers)
+            items_url = f"{self.fetch_url}{','.join(results[i:i+10])}?query={trade_id}"
+            res = self.session.get(items_url, timeout=self.timeout)
             if res.status_code != 200:
                 items_list.append(None)
             else:
@@ -112,4 +119,3 @@ class POETrade:
         df.loc[:, "max_num_of_sets"] = df.want_stock//df.want_amount
         return df
     
-

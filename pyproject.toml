@@ -1,0 +1,21 @@
+[project]
+name = "pathofexiletrade"
+version = "0.1.0"
+description = "Utilities for fetching and analyzing Path of Exile trade data."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "matplotlib>=3.10.6",
+    "numpy>=2.3.3",
+    "pandas>=2.3.2",
+    "python-dotenv>=1.1.1",
+    "requests>=2.32.5",
+    "seaborn>=0.13.2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+package = false
